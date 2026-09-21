@@ -19,7 +19,7 @@ struct ProfileMenu: View {
                     } else {
                         ForEach(store.profiles) { saved in
                             Button {
-                                settings.profile = saved.profile
+                                settings.replaceProfile(with: saved.profile)
                             } label: {
                                 Text(matchesCurrent(saved) ? "✓ \(saved.name)" : saved.name)
                             }
@@ -31,6 +31,18 @@ struct ProfileMenu: View {
                 .menuStyle(.borderlessButton)
                 .fixedSize()
                 .help("Apply a saved profile")
+                .accessibilityLabel("Saved profiles")
+
+                if !settings.undoStack.isEmpty {
+                    Button {
+                        settings.undoLastChange()
+                    } label: {
+                        Image(systemName: "arrow.uturn.backward")
+                    }
+                    .buttonStyle(.borderless)
+                    .help("Put back the settings from before the last profile change")
+                    .accessibilityLabel("Undo the last profile change")
+                }
 
                 Spacer()
 
@@ -88,7 +100,7 @@ struct ProfilesSection: View {
             HStack(spacing: 8) {
                 ProfileNameField(profile: saved) { store.rename(saved.id, to: $0) }
 
-                Button("Apply") { settings.profile = saved.profile }
+                Button("Apply") { settings.replaceProfile(with: saved.profile) }
                     .disabled(saved.profile == settings.profile)
 
                 Menu {
@@ -99,7 +111,7 @@ struct ProfilesSection: View {
                         export(name: saved.name, profile: saved.profile)
                     }
                     Divider()
-                    Button("Delete", role: .destructive) { store.delete(saved.id) }
+                    Button("Delete", role: .destructive) { confirmDelete(saved) }
                 } label: {
                     Image(systemName: "ellipsis.circle")
                 }
@@ -149,6 +161,19 @@ struct ProfilesSection: View {
         } catch {
             present(error: error, title: "Could not import that profile")
         }
+    }
+
+    /// Deleting a profile cannot be undone: the undo stack holds looks, not the
+    /// list of saved profiles.
+    private func confirmDelete(_ saved: NamedProfile) {
+        let alert = NSAlert()
+        alert.messageText = "Delete the profile “\(saved.name)”?"
+        alert.informativeText = "This cannot be undone. The current settings do not change."
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "Delete")
+        alert.addButton(withTitle: "Cancel")
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        store.delete(saved.id)
     }
 
     private func present(error: Error, title: String) {

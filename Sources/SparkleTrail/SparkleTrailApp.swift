@@ -11,7 +11,7 @@ struct SparkleTrailApp: App {
         MenuBarExtra {
             MenuPanel(settings: settings)
         } label: {
-            Image(systemName: MenuBarIcon.name(active: settings.isActive))
+            Image(systemName: MenuBarIcon.name(active: settings.isDrawing))
         }
         .menuBarExtraStyle(.window)
     }

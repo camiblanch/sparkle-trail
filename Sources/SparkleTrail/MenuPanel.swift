@@ -55,13 +55,25 @@ struct MenuPanel: View {
         HStack {
             VStack(alignment: .leading, spacing: 1) {
                 Text("Sparkle Trail").font(.headline)
-                Text(settings.isActive ? "Following your cursor" : "Paused")
+                Text(status)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             Spacer()
-            Toggle("", isOn: $settings.isActive).labelsHidden()
+            Toggle("", isOn: $settings.isActive)
+                .labelsHidden()
+                .accessibilityLabel("Sparkle trail")
         }
+    }
+
+    /// Reduce Motion stops the trail without switching it off, so that state
+    /// needs saying. Reporting "Following your cursor" while nothing draws
+    /// reads as a broken app.
+    private var status: String {
+        if !settings.isActive { return "Paused" }
+        if settings.motionSuppressed { return "Held back by Reduce Motion" }
+        return "Following your cursor"
     }
 }
 

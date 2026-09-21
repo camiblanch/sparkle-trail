@@ -24,11 +24,53 @@ final class SparkleSettings: ObservableObject {
     @Published var isActive: Bool { didSet { store.set(isActive, forKey: "isActive") } }
     @Published var respectReduceMotion: Bool { didSet { store.set(respectReduceMotion, forKey: "respectReduceMotion") } }
 
+    /// Mirrors the system Reduce Motion setting. Published so the menu bar icon
+    /// and the panel change the moment it is switched in System Settings.
+    @Published private(set) var systemReducesMotion: Bool
+
+    /// Whole-look replacements, newest last, so applying a profile over settings
+    /// you never saved is recoverable.
+    @Published private(set) var undoStack: [SparkleProfile] = []
+
+    private static let undoDepth = 10
+
     private init() {
         store.register(defaults: Self.factoryDefaults)
         profile = SparkleProfile(from: store)
         isActive = store.bool(forKey: "isActive")
         respectReduceMotion = store.bool(forKey: "respectReduceMotion")
+        systemReducesMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+
+        NotificationCenter.default.addObserver(
+            forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification,
+            object: nil,
+            queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    self?.systemReducesMotion =
+                        NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+                }
+            }
+    }
+
+    /// True when Reduce Motion is holding the trail back even though it is on.
+    var motionSuppressed: Bool { respectReduceMotion && systemReducesMotion }
+
+    /// What the menu bar icon and the panel header should report.
+    var isDrawing: Bool { isActive && !motionSuppressed }
+
+    // MARK: - Whole-look changes
+
+    /// Replaces the look, keeping the old one for `undoLastChange()`.
+    func replaceProfile(with new: SparkleProfile) {
+        guard new != profile else { return }
+        undoStack.append(profile)
+        if undoStack.count > Self.undoDepth { undoStack.removeFirst() }
+        profile = new
+    }
+
+    func undoLastChange() {
+        guard let previous = undoStack.popLast() else { return }
+        profile = previous
     }
 
     /// Derived from `SparkleProfile.factory` so the look-affecting defaults are
@@ -41,7 +83,7 @@ final class SparkleSettings: ObservableObject {
     }
 
     func restoreDefaults() {
-        profile = .factory
+        replaceProfile(with: .factory)
         respectReduceMotion = true
     }
 

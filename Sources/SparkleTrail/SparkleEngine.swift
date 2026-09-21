@@ -105,9 +105,7 @@ final class SparkleView: NSView {
             : CAFrameRateRange(minimum: 10, maximum: 30, preferred: 30)
     }
 
-    private var motionSuppressed: Bool {
-        settings.respectReduceMotion && NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
-    }
+    private var motionSuppressed: Bool { settings.motionSuppressed }
 
     /// Polling `NSEvent.mouseLocation` rather than tapping the event stream keeps
     /// the app free of any accessibility prompt. Sparkles are interpolated along

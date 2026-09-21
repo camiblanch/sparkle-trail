@@ -82,7 +82,9 @@ struct AdvancedSettingsView: View {
 
             Section {
                 HStack {
-                    Button("Restore Defaults") { settings.restoreDefaults() }
+                    Button("Restore Defaults", action: confirmRestoreDefaults)
+                    Button("Undo Last Change") { settings.undoLastChange() }
+                        .disabled(settings.undoStack.isEmpty)
                     Spacer()
                     Button(settings.isActive ? "Pause Trail" : "Resume Trail") {
                         settings.isActive.toggle()
@@ -97,6 +99,23 @@ struct AdvancedSettingsView: View {
     /// Tall enough for the whole form, but never taller than the screen.
     private static var height: CGFloat {
         min(640, (NSScreen.main?.visibleFrame.height ?? 800) - 60)
+    }
+
+    private var currentLookIsSaved: Bool {
+        ProfileStore.shared.profiles.contains { $0.profile == settings.profile }
+    }
+
+    private func confirmRestoreDefaults() {
+        let alert = NSAlert()
+        alert.messageText = "Restore the default settings?"
+        alert.informativeText = currentLookIsSaved
+            ? "Your saved profiles are not affected."
+            : "The current settings are not saved to any profile. Undo Last Change can put them back."
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "Restore Defaults")
+        alert.addButton(withTitle: "Cancel")
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        settings.restoreDefaults()
     }
 
     private func slider(_ title: String,
