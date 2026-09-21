@@ -7,46 +7,74 @@ struct AdvancedSettingsView: View {
 
     var body: some View {
         Form {
+            Section("Profiles") {
+                ProfilesSection(settings: settings)
+            }
+
             Section("Trail") {
-                slider("Amount", $settings.density, 0...1) { "\(Int($0 * 100))%" }
-                slider("Maximum sparkles", $settings.maxSparkles, 25...1500) { "\(Int($0))" }
-                slider("Lifetime", $settings.lifetime, 250...3000) { String(format: "%.2f s", $0 / 1000) }
-                slider("Smallest", $settings.minSize, 2...48) { "\(Int($0)) pt" }
-                slider("Largest", $settings.maxSize, 2...48) { "\(Int($0)) pt" }
-                slider("Opacity", $settings.opacity, 0.1...1) { "\(Int($0 * 100))%" }
+                slider("Amount", $settings.profile.density, 0...1,
+                       caption: "How often a sparkle appears as the cursor moves.") {
+                    "\(Int($0 * 100))%"
+                }
+                slider("Maximum sparkles", $settings.profile.maxSparkles, 25...1500,
+                       caption: "The most that can be on screen at once. Raise it if fast movement looks thin.") {
+                    "\(Int($0))"
+                }
+                slider("Lifetime", $settings.profile.lifetime, 250...3000,
+                       caption: "How long each sparkle lasts before it fades out.") {
+                    String(format: "%.2f s", $0 / 1000)
+                }
+                slider("Smallest", $settings.profile.minSize, 2...48,
+                       caption: "Each sparkle takes a random size between these two.") {
+                    "\(Int($0)) pt"
+                }
+                slider("Largest", $settings.profile.maxSize, 2...48) { "\(Int($0)) pt" }
+                slider("Opacity", $settings.profile.opacity, 0.1...1) { "\(Int($0 * 100))%" }
             }
 
             Section("Motion") {
-                slider("Gravity", $settings.gravity, -400...900) { "\(Int($0))" }
-                slider("Sideways drift", $settings.drift, 0...240) { "\(Int($0))" }
-                slider("Upward kick", $settings.lift, 0...240) { "\(Int($0))" }
-                slider("Spin", $settings.spin, 0...900) { "\(Int($0))°/s" }
+                slider("Gravity", $settings.profile.gravity, -400...900,
+                       caption: "Below zero, sparkles rise instead of falling.") {
+                    "\(Int($0))"
+                }
+                slider("Sideways drift", $settings.profile.drift, 0...240,
+                       caption: "Each sparkle gets a random sideways speed up to this.") {
+                    "\(Int($0))"
+                }
+                slider("Upward kick", $settings.profile.lift, 0...240,
+                       caption: "Each sparkle gets a random upward speed up to this.") {
+                    "\(Int($0))"
+                }
+                slider("Spin", $settings.profile.spin, 0...900,
+                       caption: "Each sparkle gets a random spin rate up to this, either direction.") {
+                    "\(Int($0))°/s"
+                }
             }
 
             Section("Appearance") {
-                Picker("Shape", selection: $settings.shapeID) {
+                Picker("Shape", selection: $settings.profile.shapeID) {
                     ForEach(SparkleShape.allCases) { shape in
                         Text(shape.label).tag(shape.rawValue)
                     }
                 }
-                Picker("Colour scheme", selection: $settings.paletteID) {
+                Picker("Colour scheme", selection: $settings.profile.paletteID) {
                     ForEach(Palettes.builtIn) { palette in
                         Text(palette.name).tag(palette.id)
                     }
                 }
-                Toggle("Glow", isOn: $settings.glow)
+                Toggle("Glow", isOn: $settings.profile.glow)
             }
 
-            if settings.paletteID == Palettes.customID {
+            if settings.profile.paletteID == Palettes.customID {
                 Section("Custom colours") {
                     CustomColorEditor(settings: settings)
                 }
             }
 
             Section("Behaviour") {
-                Toggle("Burst on click", isOn: $settings.clickBurst)
-                if settings.clickBurst {
-                    slider("Burst size", $settings.burstCount, 4...60) { "\(Int($0))" }
+                Toggle("Burst on click", isOn: $settings.profile.clickBurst)
+                if settings.profile.clickBurst {
+                    slider("Burst size", $settings.profile.burstCount, 4...60) { "\(Int($0))" }
                 }
                 Toggle("Pause when Reduce Motion is on", isOn: $settings.respectReduceMotion)
                 LaunchAtLoginToggle()
@@ -74,8 +102,10 @@ struct AdvancedSettingsView: View {
     private func slider(_ title: String,
                         _ value: Binding<Double>,
                         _ range: ClosedRange<Double>,
+                        caption: String? = nil,
                         display: @escaping (Double) -> String) -> some View {
-        LabelledSlider(title: title, value: value, range: range, display: display)
+        LabelledSlider(title: title, value: value, range: range,
+                       display: display, caption: caption)
     }
 }
 

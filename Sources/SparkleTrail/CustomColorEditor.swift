@@ -8,7 +8,7 @@ struct CustomColorEditor: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            ForEach(Array(settings.customHexes.indices), id: \.self) { index in
+            ForEach(Array(settings.profile.customHexes.indices), id: \.self) { index in
                 HStack(spacing: 8) {
                     ColorPanelWell(token: "custom-\(index)",
                                    color: color(at: index),
@@ -19,27 +19,27 @@ struct CustomColorEditor: View {
                         // Removing shifts every later colour down an index, so
                         // the open panel would start editing the wrong slot.
                         ColorPanelController.shared.close()
-                        settings.customHexes.remove(at: index)
+                        settings.profile.customHexes.remove(at: index)
                     } label: {
                         Image(systemName: "minus.circle")
                     }
                     .buttonStyle(.borderless)
-                    .disabled(settings.customHexes.count <= 1)
+                    .disabled(settings.profile.customHexes.count <= 1)
                     .help("Remove this colour")
                 }
             }
 
             HStack {
                 Button {
-                    settings.customHexes.append(nextColorHex())
+                    settings.profile.customHexes.append(nextColorHex())
                 } label: {
                     Label("Add colour", systemImage: "plus.circle")
                 }
                 .buttonStyle(.borderless)
-                .disabled(settings.customHexes.count >= Palettes.maxCustomColors)
+                .disabled(settings.profile.customHexes.count >= Palettes.maxCustomColors)
 
                 Spacer()
-                Text("\(settings.customHexes.count)/\(Palettes.maxCustomColors)")
+                Text("\(settings.profile.customHexes.count)/\(Palettes.maxCustomColors)")
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.secondary)
             }
@@ -47,28 +47,28 @@ struct CustomColorEditor: View {
     }
 
     private func nextColorHex() -> String {
-        let hue = Double(settings.customHexes.count) / Double(Palettes.maxCustomColors)
+        let hue = Double(settings.profile.customHexes.count) / Double(Palettes.maxCustomColors)
         return NSColor(hue: hue, saturation: 0.7, brightness: 1, alpha: 1).hexString
     }
 
     private func hexBinding(at index: Int) -> Binding<String> {
         Binding(
-            get: { settings.customHexes.indices.contains(index) ? settings.customHexes[index] : "#ffffff" },
+            get: { settings.profile.customHexes.indices.contains(index) ? settings.profile.customHexes[index] : "#ffffff" },
             set: { newValue in
-                guard settings.customHexes.indices.contains(index) else { return }
-                settings.customHexes[index] = newValue
+                guard settings.profile.customHexes.indices.contains(index) else { return }
+                settings.profile.customHexes[index] = newValue
             })
     }
 
     private func color(at index: Int) -> NSColor {
-        guard settings.customHexes.indices.contains(index),
-              let color = NSColor(hex: settings.customHexes[index]) else { return .white }
+        guard settings.profile.customHexes.indices.contains(index),
+              let color = NSColor(hex: settings.profile.customHexes[index]) else { return .white }
         return color
     }
 
     private func setColor(_ color: NSColor, at index: Int) {
-        guard settings.customHexes.indices.contains(index) else { return }
-        settings.customHexes[index] = color.hexString
+        guard settings.profile.customHexes.indices.contains(index) else { return }
+        settings.profile.customHexes[index] = color.hexString
     }
 }
 

@@ -134,7 +134,7 @@ final class SparkleView: NSView {
         guard distance > 0.01 else { return }
 
         let step = settings.spawnDistance
-        let budget = min(64, max(1, Int(settings.maxSparkles)))
+        let budget = min(64, max(1, Int(settings.profile.maxSparkles)))
         var arc = step - leftover
         var placed = 0
 
@@ -156,8 +156,8 @@ final class SparkleView: NSView {
 
     func advance(_ delta: Double) {
         guard !pool.isEmpty else { return }
-        let gravity = CGFloat(settings.gravity)
-        let globalOpacity = Float(min(max(settings.opacity, 0), 1))
+        let gravity = CGFloat(settings.profile.gravity)
+        let globalOpacity = Float(min(max(settings.profile.opacity, 0), 1))
         var alive = 0
 
         for sparkle in pool {
@@ -194,7 +194,7 @@ final class SparkleView: NSView {
     private func acquire() -> Sparkle {
         if let reusable = idle.popLast() { return reusable }
 
-        let limit = max(1, Int(settings.maxSparkles))
+        let limit = max(1, Int(settings.profile.maxSparkles))
         if pool.count < limit {
             let sparkle = Sparkle()
             let layer = sparkle.layer
@@ -219,7 +219,7 @@ final class SparkleView: NSView {
     /// The pool only ever grows, so a lowered "max sparkles" is honoured by
     /// dropping the surplus layers once they have finished burning out.
     private func trimPool() {
-        let limit = max(1, Int(settings.maxSparkles))
+        let limit = max(1, Int(settings.profile.maxSparkles))
         guard pool.count > limit else { return }
         var kept: [Sparkle] = []
         kept.reserveCapacity(limit)
@@ -249,14 +249,14 @@ final class SparkleView: NSView {
         let sparkle = acquire()
         let range = settings.sizeRange
         let size = between(range.lowerBound, range.upperBound)
-        let spinLimit = CGFloat(settings.spin)
+        let spinLimit = CGFloat(settings.profile.spin)
 
         sparkle.age = 0
-        sparkle.lifetime = max(0.05, settings.lifetime / 1000)
+        sparkle.lifetime = max(0.05, settings.profile.lifetime / 1000)
         sparkle.position = point
         sparkle.velocity = velocity ?? CGVector(
-            dx: between(-CGFloat(settings.drift), CGFloat(settings.drift)),
-            dy: between(-CGFloat(settings.lift) * 0.25, CGFloat(settings.lift)))
+            dx: between(-CGFloat(settings.profile.drift), CGFloat(settings.profile.drift)),
+            dy: between(-CGFloat(settings.profile.lift) * 0.25, CGFloat(settings.profile.lift)))
         sparkle.size = size
         sparkle.angle = between(0, 360)
         sparkle.spin = between(-spinLimit, spinLimit)
@@ -269,7 +269,7 @@ final class SparkleView: NSView {
         layer.fillColor = nextColor().cgColor
         layer.opacity = 0
 
-        if settings.glow {
+        if settings.profile.glow {
             layer.shadowPath = path
             layer.shadowColor = layer.fillColor
             layer.shadowOpacity = 0.85
@@ -300,8 +300,8 @@ final class SparkleView: NSView {
     func burst(at globalPoint: CGPoint) {
         guard settings.isActive, !motionSuppressed else { return }
         let origin = convertToLocal(globalPoint)
-        let count = max(1, Int(settings.burstCount))
-        let speed = CGFloat(max(settings.drift, 40)) * 2.4
+        let count = max(1, Int(settings.profile.burstCount))
+        let speed = CGFloat(max(settings.profile.drift, 40)) * 2.4
 
         CATransaction.begin()
         CATransaction.setDisableActions(true)
@@ -425,7 +425,7 @@ final class SparkleEngine {
     }
 
     private func handleClick() {
-        guard settings.clickBurst else { return }
+        guard settings.profile.clickBurst else { return }
         view?.burst(at: NSEvent.mouseLocation)
     }
 

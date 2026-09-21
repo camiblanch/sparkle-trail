@@ -10,28 +10,32 @@ struct MenuPanel: View {
 
             Divider()
 
+            ProfileMenu(settings: settings)
+
+            Divider()
+
             PaletteGrid(settings: settings)
 
-            if settings.paletteID == Palettes.customID {
+            if settings.profile.paletteID == Palettes.customID {
                 CustomColorEditor(settings: settings)
             }
 
-            LabelledSlider(title: "Amount", value: $settings.density, range: 0...1,
+            LabelledSlider(title: "Amount", value: $settings.profile.density, range: 0...1,
                            display: { "\(Int($0 * 100))%" })
-            LabelledSlider(title: "Size", value: $settings.maxSize, range: 6...48,
+            LabelledSlider(title: "Largest", value: $settings.profile.maxSize, range: 6...48,
                            display: { "\(Int($0)) pt" })
-            LabelledSlider(title: "Trail length", value: $settings.lifetime, range: 250...3000,
+            LabelledSlider(title: "Lifetime", value: $settings.profile.lifetime, range: 250...3000,
                            display: { String(format: "%.1f s", $0 / 1000) })
 
-            Picker("Shape", selection: $settings.shapeID) {
+            Picker("Shape", selection: $settings.profile.shapeID) {
                 ForEach(SparkleShape.allCases) { shape in
                     Text(shape.label).tag(shape.rawValue)
                 }
             }
             .pickerStyle(.menu)
 
-            Toggle("Glow", isOn: $settings.glow)
-            Toggle("Burst on click", isOn: $settings.clickBurst)
+            Toggle("Glow", isOn: $settings.profile.glow)
+            Toggle("Burst on click", isOn: $settings.profile.clickBurst)
 
             Divider()
 
@@ -66,6 +70,9 @@ struct LabelledSlider: View {
     @Binding var value: Double
     let range: ClosedRange<Double>
     var display: (Double) -> String
+    /// Only the controls whose effect is not obvious carry one. Captioning
+    /// every slider would bury the few that need the explanation.
+    var caption: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
@@ -77,6 +84,12 @@ struct LabelledSlider: View {
                     .foregroundStyle(.secondary)
             }
             Slider(value: $value, in: range)
+            if let caption {
+                Text(caption)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 }
@@ -92,10 +105,10 @@ struct PaletteGrid: View {
             LazyVGrid(columns: columns, spacing: 8) {
                 ForEach(Palettes.builtIn) { palette in
                     Button {
-                        settings.paletteID = palette.id
+                        settings.profile.paletteID = palette.id
                     } label: {
                         Swatch(colors: swatchColors(for: palette),
-                               selected: settings.paletteID == palette.id)
+                               selected: settings.profile.paletteID == palette.id)
                     }
                     .buttonStyle(.plain)
                     .help(palette.name)
@@ -112,7 +125,7 @@ struct PaletteGrid: View {
         case Palettes.rainbowID:
             return (0..<6).map { Color(hue: Double($0) / 6, saturation: 0.85, brightness: 1) }
         case Palettes.customID:
-            let colors = settings.customHexes.compactMap(NSColor.init(hex:)).map(Color.init(nsColor:))
+            let colors = settings.profile.customHexes.compactMap(NSColor.init(hex:)).map(Color.init(nsColor:))
             return colors.isEmpty ? [Color(nsColor: .quaternaryLabelColor)] : colors
         default:
             return palette.swatches.map(Color.init(nsColor:))
