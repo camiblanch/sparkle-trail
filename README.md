@@ -40,9 +40,20 @@ make dist           # universal build, packaged as dist/SparkleTrail.zip
 ```
 
 `make dist` regenerates the committed download; run it and commit the zip
-whenever the app changes. It cross-compiles the second architecture and `lipo`s
-the slices together, because SwiftPM's own `--arch` needs xcbuild, which ships
-with Xcode rather than the Command Line Tools.
+whenever the app changes. It cross-compiles the second architecture into its own
+scratch path and `lipo`s the slices together, so each slice keeps its own build
+cache.
+
+`build.sh` works around two gaps in the Command Line Tools:
+
+- It selects the older SwiftPM build engine. The Swift Build engine needs a
+  `Platforms` directory that the Command Line Tools do not ship.
+- It picks the newest installed SDK that compiles a SwiftUI view. From the
+  macOS 27 SDK on, `@State` is a macro rather than a property wrapper, and the
+  Command Line Tools ship no `SwiftUIMacros` plugin to expand it. Set `SDKROOT`
+  to choose an SDK yourself.
+
+Neither workaround applies once a full Xcode is installed.
 
 No permission prompts: the cursor is read with `NSEvent.mouseLocation` polling
 rather than an event tap, so there is nothing to approve in System Settings.
