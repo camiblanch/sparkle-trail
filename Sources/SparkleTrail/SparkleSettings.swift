@@ -5,19 +5,13 @@ import Combine
 final class SparkleSettings: ObservableObject {
     static let shared = SparkleSettings()
 
-    private let store = UserDefaults.standard
+    private let store: UserDefaults
 
     /// The whole look, in one value. Views bind straight through it, as in
     /// `$settings.profile.density`, so adding a setting means adding it to
     /// `SparkleProfile` and nowhere else.
     @Published var profile: SparkleProfile {
-        didSet {
-            if profile.customHexes.count > Palettes.maxCustomColors {
-                profile.customHexes = Array(profile.customHexes.prefix(Palettes.maxCustomColors))
-                return
-            }
-            profile.write(to: store)
-        }
+        didSet { profile.write(to: store) }
     }
 
     // Kept out of the profile: these are app preferences, not part of a look.
@@ -34,9 +28,10 @@ final class SparkleSettings: ObservableObject {
 
     private static let undoDepth = 10
 
-    private init() {
+    init(store: UserDefaults = .standard) {
+        self.store = store
         store.register(defaults: Self.factoryDefaults)
-        profile = SparkleProfile(from: store)
+        profile = SparkleProfile(from: store).clampingCustomColorCount()
         isActive = store.bool(forKey: "isActive")
         respectReduceMotion = store.bool(forKey: "respectReduceMotion")
         systemReducesMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
@@ -62,10 +57,11 @@ final class SparkleSettings: ObservableObject {
 
     /// Replaces the look, keeping the old one for `undoLastChange()`.
     func replaceProfile(with new: SparkleProfile) {
-        guard new != profile else { return }
+        let clamped = new.clampingCustomColorCount()
+        guard clamped != profile else { return }
         undoStack.append(profile)
         if undoStack.count > Self.undoDepth { undoStack.removeFirst() }
-        profile = new
+        profile = clamped
     }
 
     func undoLastChange() {

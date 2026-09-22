@@ -76,6 +76,17 @@ extension SparkleProfile {
     func write(to defaults: UserDefaults) {
         for (key, value) in registrationDictionary { defaults.set(value, forKey: key) }
     }
+
+    /// Drops any custom colours past `Palettes.maxCustomColors`, so a profile
+    /// from an import or an older release cannot carry more than the editor
+    /// allows. Returns a copy: mutating a `@Published` profile in place would
+    /// run its `didSet` again.
+    func clampingCustomColorCount() -> SparkleProfile {
+        guard customHexes.count > Palettes.maxCustomColors else { return self }
+        var clamped = self
+        clamped.customHexes = Array(customHexes.prefix(Palettes.maxCustomColors))
+        return clamped
+    }
 }
 
 /// A profile the user named and kept.
