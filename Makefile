@@ -13,7 +13,7 @@ universal:
 	UNIVERSAL=1 ./build.sh
 
 # The committed download. Regenerate and commit this whenever the app changes.
-dist: universal
+dist: test universal
 	mkdir -p dist
 	rm -f "$(ZIP)"
 	ditto -c -k --sequesterRsrc --keepParent "$(APP)" "$(ZIP)"
@@ -23,7 +23,7 @@ run: app
 	@pkill -x SparkleTrail || true
 	open "$(APP)"
 
-install: app
+install: test app
 	@pkill -x SparkleTrail || true
 	rm -rf "/Applications/Sparkle Trail.app"
 	cp -R "$(APP)" /Applications/

@@ -37,10 +37,10 @@ not needed).
 ./test.sh           # runs the test suite; --filter <name> narrows it
 make run            # build, then launch it
 make test           # same as ./test.sh
-make install        # copy to /Applications and launch
+make install        # test, copy to /Applications and launch
 make uninstall      # quit and remove from /Applications
 make universal      # arm64 + x86_64 build
-make dist           # universal build, packaged as dist/SparkleTrail.zip
+make dist           # test, universal build, packaged as dist/SparkleTrail.zip
 ```
 
 Every push to `main` and every pull request runs `./test.sh` and `./build.sh` on
