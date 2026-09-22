@@ -36,8 +36,11 @@ final class SparkleView: NSView {
     private var link: CADisplayLink?
     private var previousTimestamp: CFTimeInterval = 0
     private var lastCursor: CGPoint?
-    private var leftover: CGFloat = 0
+    private var spacing = TrailSpacing()
     private var aliveCount = 0
+
+    private var cachedShape: SparkleShape = .star
+    private var cachedUnitPath: CGPath = SparkleShape.star.unitPath
 
     init(settings: SparkleSettings) {
         self.settings = settings
@@ -57,7 +60,7 @@ final class SparkleView: NSView {
         let created = displayLink(target: self, selector: #selector(step(_:)))
         previousTimestamp = 0
         lastCursor = nil
-        leftover = 0
+        spacing.reset()
         created.add(to: .main, forMode: .common)
         link = created
         applyFrameRate(alive: false)
@@ -105,14 +108,12 @@ final class SparkleView: NSView {
             : CAFrameRateRange(minimum: 10, maximum: 30, preferred: 30)
     }
 
-    private var motionSuppressed: Bool { settings.motionSuppressed }
-
     /// Polling `NSEvent.mouseLocation` rather than tapping the event stream keeps
     /// the app free of any accessibility prompt. Sparkles are interpolated along
     /// the segment travelled since the last frame so a fast flick still leaves an
     /// evenly spaced trail instead of one lonely star.
     private func sampleCursor() {
-        guard settings.isActive, !motionSuppressed else {
+        guard settings.isDrawing else {
             lastCursor = nil
             return
         }
@@ -126,30 +127,11 @@ final class SparkleView: NSView {
         }
         lastCursor = point
 
-        let dx = point.x - last.x
-        let dy = point.y - last.y
-        let distance = hypot(dx, dy)
-        guard distance > 0.01 else { return }
-
-        let step = settings.spawnDistance
-        let budget = min(64, settings.sparkleLimit)
-        var arc = step - leftover
-        var placed = 0
-
-        while arc <= distance && placed < budget {
-            let fraction = arc / distance
-            spawn(at: CGPoint(x: last.x + dx * fraction, y: last.y + dy * fraction))
-            arc += step
-            placed += 1
-        }
-
-        if placed == 0 {
-            leftover += distance
-        } else if placed == budget {
-            leftover = 0
-        } else {
-            leftover = distance - (arc - step)
-        }
+        let points = spacing.points(from: last,
+                                    to: point,
+                                    spacing: settings.spawnDistance,
+                                    budget: min(64, settings.sparkleLimit))
+        for point in points { spawn(at: point) }
     }
 
     func advance(_ delta: Double) {
@@ -241,6 +223,10 @@ final class SparkleView: NSView {
         let size = between(range.lowerBound, range.upperBound)
         let spinLimit = CGFloat(settings.profile.spin)
 
+        // Recycling takes the oldest sparkle whether or not it has finished, so
+        // one that is still burning is already counted.
+        if !sparkle.isAlive { aliveCount += 1 }
+
         sparkle.age = 0
         sparkle.lifetime = max(0.05, settings.profile.lifetime / 1000)
         sparkle.position = point
@@ -268,12 +254,7 @@ final class SparkleView: NSView {
         } else {
             layer.shadowOpacity = 0
         }
-
-        aliveCount += 1
     }
-
-    private var cachedShape: SparkleShape = .star
-    private var cachedUnitPath: CGPath = SparkleShape.star.unitPath
 
     private func scaledPath(size: CGFloat) -> CGPath {
         let shape = settings.shape
@@ -288,7 +269,7 @@ final class SparkleView: NSView {
     // MARK: - Bursts
 
     func burst(at globalPoint: CGPoint) {
-        guard settings.isActive, !motionSuppressed else { return }
+        guard settings.isDrawing else { return }
         let origin = convertToLocal(globalPoint)
         let count = max(1, Int(settings.profile.burstCount))
         let speed = CGFloat(max(settings.profile.drift, 40)) * 2.4
@@ -319,18 +300,26 @@ final class SparkleEngine {
     private var monitors: [Any] = []
     private var isRunning = false
 
+    private var observers: [NSObjectProtocol] = []
+
+    deinit {
+        observers.forEach(NotificationCenter.default.removeObserver)
+    }
+
     init(settings: SparkleSettings) {
         self.settings = settings
-        NotificationCenter.default.addObserver(
+        observers.append(NotificationCenter.default.addObserver(
             forName: NSApplication.didChangeScreenParametersNotification,
             object: nil, queue: .main) { [weak self] _ in
                 MainActor.assumeIsolated { self?.layoutOverlay() }
-            }
+            })
     }
 
     /// Called for every settings change, so it has to be cheap and idempotent.
+    /// Reduce Motion holds the trail back without switching it off, so the
+    /// overlay and the display link come down for that too rather than idling.
     func sync() {
-        if settings.isActive {
+        if settings.isDrawing {
             guard !isRunning else { return }
             isRunning = true
             start()
