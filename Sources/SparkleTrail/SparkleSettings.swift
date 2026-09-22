@@ -28,6 +28,12 @@ final class SparkleSettings: ObservableObject {
 
     private static let undoDepth = 10
 
+    private var observers: [NSObjectProtocol] = []
+
+    deinit {
+        observers.forEach(NotificationCenter.default.removeObserver)
+    }
+
     init(store: UserDefaults = .standard) {
         self.store = store
         store.register(defaults: Self.factoryDefaults)
@@ -36,7 +42,7 @@ final class SparkleSettings: ObservableObject {
         respectReduceMotion = store.bool(forKey: "respectReduceMotion")
         systemReducesMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
 
-        NotificationCenter.default.addObserver(
+        observers.append(NotificationCenter.default.addObserver(
             forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification,
             object: nil,
             queue: .main) { [weak self] _ in
@@ -44,7 +50,7 @@ final class SparkleSettings: ObservableObject {
                     self?.systemReducesMotion =
                         NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
                 }
-            }
+            })
     }
 
     /// True when Reduce Motion is holding the trail back even though it is on.

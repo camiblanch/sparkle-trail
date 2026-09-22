@@ -4,6 +4,7 @@ import SwiftUI
 
 struct AdvancedSettingsView: View {
     @ObservedObject var settings: SparkleSettings
+    @ObservedObject private var store = ProfileStore.shared
 
     var body: some View {
         Form {
@@ -62,7 +63,7 @@ struct AdvancedSettingsView: View {
     }
 
     private var currentLookIsSaved: Bool {
-        ProfileStore.shared.profiles.contains { $0.profile == settings.profile }
+        store.profiles.contains { $0.profile == settings.profile }
     }
 
     private func confirmRestoreDefaults() {

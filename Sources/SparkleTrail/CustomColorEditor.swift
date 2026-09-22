@@ -100,22 +100,35 @@ struct ColorPanelWell: View {
     private var isOpen: Bool { controller.activeToken == token }
 }
 
+/// The field holds what the user types, which may be half a hex value; `hex`
+/// holds only values that parse. They are kept apart so a partly typed value is
+/// neither pushed up nor overwritten from below on the next keystroke.
 struct HexField: View {
     @Binding var hex: String
-    @State private var text = ""
+    @State private var text: String
+
+    init(hex: Binding<String>) {
+        _hex = hex
+        _text = State(initialValue: hex.wrappedValue)
+    }
 
     var body: some View {
         TextField("#rrggbb", text: $text)
             .textFieldStyle(.roundedBorder)
             .font(.caption.monospaced())
             .frame(width: 82)
-            .onAppear { text = hex }
-            .onChange(of: hex) { _, updated in
-                if NSColor(hex: text)?.hexString != updated { text = updated }
-            }
             .onChange(of: text) { _, typed in
                 if let parsed = NSColor(hex: typed) { hex = parsed.hexString }
             }
+            .onChange(of: hex) { _, updated in
+                if !typedValueMeans(updated) { text = updated }
+            }
             .onSubmit { text = hex }
+    }
+
+    /// True when the text already means this colour, so picking the same value
+    /// in the colour panel does not rewrite what is being typed.
+    private func typedValueMeans(_ value: String) -> Bool {
+        NSColor(hex: text)?.hexString == value
     }
 }

@@ -5,7 +5,7 @@ import SwiftUI
 @main
 struct SparkleTrailApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
-    @ObservedObject private var settings = SparkleSettings.shared
+    @StateObject private var settings = SparkleSettings.shared
 
     var body: some Scene {
         MenuBarExtra {
