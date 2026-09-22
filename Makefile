@@ -1,10 +1,13 @@
 APP := build/Sparkle Trail.app
 ZIP := dist/SparkleTrail.zip
 
-.PHONY: app universal dist run install uninstall clean
+.PHONY: app universal dist test run install uninstall clean
 
 app:
 	./build.sh
+
+test:
+	./test.sh
 
 universal:
 	UNIVERSAL=1 ./build.sh
