@@ -63,6 +63,52 @@ struct ProfilePersistenceTests {
         #expect(loaded.maxSparkles == SparkleProfile.factory.maxSparkles)
         #expect(loaded.shapeID == SparkleProfile.factory.shapeID)
     }
+
+    /// Asks the suite's persistent domain rather than `object(forKey:)`, which
+    /// also consults the registration domain. Registration is process-wide, so
+    /// a suite running in parallel would otherwise decide this test.
+    @Test("A profile is stored under one key, not one key per property")
+    func writesASingleKey() {
+        let suite = "sparkletrail.tests.singlekey.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { UserDefaults.standard.removePersistentDomain(forName: suite) }
+
+        SparkleProfile.factory.write(to: defaults)
+        let persisted = UserDefaults.standard.persistentDomain(forName: suite) ?? [:]
+
+        #expect(persisted[SparkleProfile.storageKey] != nil)
+        #expect(persisted["density"] == nil)
+        #expect(persisted.count == 1)
+    }
+
+    /// Releases before the single-key layout wrote one key per property. Those
+    /// settings have to survive the upgrade.
+    @Test("Settings written by an older release are still read")
+    func readsLegacyPerKeyLayout() {
+        let defaults = isolatedDefaults()
+        var stored = SparkleProfile.factory
+        stored.density = 0.15
+        stored.shapeID = SparkleShape.heart.rawValue
+        for (key, value) in stored.registrationDictionary { defaults.set(value, forKey: key) }
+
+        let loaded = SparkleProfile(from: defaults)
+
+        #expect(loaded == stored)
+    }
+
+    @Test("The single key wins over leftover legacy keys")
+    func singleKeyTakesPrecedence() {
+        let defaults = isolatedDefaults()
+        var legacy = SparkleProfile.factory
+        legacy.density = 0.15
+        for (key, value) in legacy.registrationDictionary { defaults.set(value, forKey: key) }
+
+        var current = SparkleProfile.factory
+        current.density = 0.85
+        current.write(to: defaults)
+
+        #expect(SparkleProfile(from: defaults).density == 0.85)
+    }
 }
 
 @Suite("Settings persistence")

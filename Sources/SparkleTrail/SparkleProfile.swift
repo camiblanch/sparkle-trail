@@ -56,10 +56,32 @@ struct SparkleProfile: Codable, Equatable {
 
 // In an extension so the memberwise initialiser survives.
 extension SparkleProfile {
-    /// Reads one key per property, the layout the app has always stored, so an
-    /// existing installation keeps its settings. Anything missing or unreadable
-    /// falls back to the factory value for that key.
+    static let storageKey = "profile"
+
+    /// Reads the stored profile, falling back to the one-key-per-property
+    /// layout that releases before the single-blob key used. A profile saved by
+    /// an older release therefore survives the upgrade and is rewritten as a
+    /// blob by the next change.
     init(from defaults: UserDefaults) {
+        if let data = defaults.data(forKey: Self.storageKey),
+           let decoded = try? JSONDecoder().decode(SparkleProfile.self, from: data) {
+            self = decoded
+        } else {
+            self = SparkleProfile(fromLegacyKeysIn: defaults)
+        }
+    }
+
+    /// One `set` of one encoded value, rather than one per property. The
+    /// observer on `SparkleSettings.profile` runs for every frame of a slider
+    /// drag, so this is a hot path.
+    func write(to defaults: UserDefaults) {
+        guard let data = try? JSONEncoder().encode(self) else { return }
+        defaults.set(data, forKey: Self.storageKey)
+    }
+
+    /// Anything missing or unreadable falls back to the factory value for that
+    /// key. The legacy keys are left in place, so downgrading still finds them.
+    private init(fromLegacyKeysIn defaults: UserDefaults) {
         var raw = SparkleProfile.factory.registrationDictionary
         for key in raw.keys {
             if let stored = defaults.object(forKey: key) { raw[key] = stored }
@@ -71,10 +93,6 @@ extension SparkleProfile {
             return
         }
         self = decoded
-    }
-
-    func write(to defaults: UserDefaults) {
-        for (key, value) in registrationDictionary { defaults.set(value, forKey: key) }
     }
 
     /// Drops any custom colours past `Palettes.maxCustomColors`, so a profile
