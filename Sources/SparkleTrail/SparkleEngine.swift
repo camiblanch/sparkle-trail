@@ -132,7 +132,7 @@ final class SparkleView: NSView {
         guard distance > 0.01 else { return }
 
         let step = settings.spawnDistance
-        let budget = min(64, max(1, Int(settings.profile.maxSparkles)))
+        let budget = min(64, settings.sparkleLimit)
         var arc = step - leftover
         var placed = 0
 
@@ -192,7 +192,7 @@ final class SparkleView: NSView {
     private func acquire() -> Sparkle {
         if let reusable = idle.popLast() { return reusable }
 
-        let limit = max(1, Int(settings.profile.maxSparkles))
+        let limit = settings.sparkleLimit
         if pool.count < limit {
             let sparkle = Sparkle()
             let layer = sparkle.layer
@@ -217,7 +217,7 @@ final class SparkleView: NSView {
     /// The pool only ever grows, so a lowered "max sparkles" is honoured by
     /// dropping the surplus layers once they have finished burning out.
     private func trimPool() {
-        let limit = max(1, Int(settings.profile.maxSparkles))
+        let limit = settings.sparkleLimit
         guard pool.count > limit else { return }
         var kept: [Sparkle] = []
         kept.reserveCapacity(limit)
@@ -233,14 +233,6 @@ final class SparkleView: NSView {
             idle.removeAll { $0.layer.superlayer == nil }
             nextRecycle = 0
         }
-    }
-
-    private func nextColor() -> NSColor {
-        if settings.usesRainbow {
-            return NSColor(hue: .random(in: 0...1), saturation: 0.85, brightness: 1, alpha: 1)
-        }
-        let colors = settings.activeColors
-        return colors.randomElement() ?? .white
     }
 
     private func spawn(at point: CGPoint, velocity: CGVector? = nil) {
@@ -264,7 +256,7 @@ final class SparkleView: NSView {
         layer.bounds = CGRect(x: 0, y: 0, width: size, height: size)
         layer.path = path
         layer.position = point
-        layer.fillColor = nextColor().cgColor
+        layer.fillColor = settings.paletteColors.next.cgColor
         layer.opacity = 0
 
         if settings.profile.glow {

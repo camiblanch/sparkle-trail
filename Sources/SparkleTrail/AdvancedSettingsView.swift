@@ -12,56 +12,16 @@ struct AdvancedSettingsView: View {
             }
 
             Section("Trail") {
-                slider("Amount", $settings.profile.density, 0...1,
-                       caption: "How often a sparkle appears as the cursor moves.") {
-                    "\(Int($0 * 100))%"
-                }
-                slider("Maximum sparkles", $settings.profile.maxSparkles, 25...1500,
-                       caption: "The most that can be on screen at once. Raise it if fast movement looks thin.") {
-                    "\(Int($0))"
-                }
-                slider("Lifetime", $settings.profile.lifetime, 250...3000,
-                       caption: "How long each sparkle lasts before it fades out.") {
-                    String(format: "%.2f s", $0 / 1000)
-                }
-                slider("Smallest", $settings.profile.minSize, 2...48,
-                       caption: "Each sparkle takes a random size between these two.") {
-                    "\(Int($0)) pt"
-                }
-                slider("Largest", $settings.profile.maxSize, 2...48) { "\(Int($0)) pt" }
-                slider("Opacity", $settings.profile.opacity, 0.1...1) { "\(Int($0 * 100))%" }
+                sliders(.density, .maxSparkles, .lifetime, .minSize, .maxSize, .opacity)
             }
 
             Section("Motion") {
-                slider("Gravity", $settings.profile.gravity, -400...900,
-                       caption: "Below zero, sparkles rise instead of falling.") {
-                    "\(Int($0))"
-                }
-                slider("Sideways drift", $settings.profile.drift, 0...240,
-                       caption: "Each sparkle gets a random sideways speed up to this.") {
-                    "\(Int($0))"
-                }
-                slider("Upward kick", $settings.profile.lift, 0...240,
-                       caption: "Each sparkle gets a random upward speed up to this.") {
-                    "\(Int($0))"
-                }
-                slider("Spin", $settings.profile.spin, 0...900,
-                       caption: "Each sparkle gets a random spin rate up to this, either direction.") {
-                    "\(Int($0))°/s"
-                }
+                sliders(.gravity, .drift, .lift, .spin)
             }
 
             Section("Appearance") {
-                Picker("Shape", selection: $settings.profile.shapeID) {
-                    ForEach(SparkleShape.allCases) { shape in
-                        Text(shape.label).tag(shape.rawValue)
-                    }
-                }
-                Picker("Colour scheme", selection: $settings.profile.paletteID) {
-                    ForEach(Palettes.builtIn) { palette in
-                        Text(palette.name).tag(palette.id)
-                    }
-                }
+                ShapePicker(shapeID: $settings.profile.shapeID)
+                PaletteSchemePicker(paletteID: $settings.profile.paletteID)
                 Toggle("Glow", isOn: $settings.profile.glow)
             }
 
@@ -74,7 +34,7 @@ struct AdvancedSettingsView: View {
             Section("Behaviour") {
                 Toggle("Burst on click", isOn: $settings.profile.clickBurst)
                 if settings.profile.clickBurst {
-                    slider("Burst size", $settings.profile.burstCount, 4...60) { "\(Int($0))" }
+                    sliders(.burstCount)
                 }
                 Toggle("Pause when Reduce Motion is on", isOn: $settings.respectReduceMotion)
                 LaunchAtLoginToggle()
@@ -106,25 +66,19 @@ struct AdvancedSettingsView: View {
     }
 
     private func confirmRestoreDefaults() {
-        let alert = NSAlert()
-        alert.messageText = "Restore the default settings?"
-        alert.informativeText = currentLookIsSaved
+        let detail = currentLookIsSaved
             ? "Your saved profiles are not affected."
             : "The current settings are not saved to any profile. Undo Last Change can put them back."
-        alert.alertStyle = .warning
-        alert.addButton(withTitle: "Restore Defaults")
-        alert.addButton(withTitle: "Cancel")
-        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        guard Alerts.confirmDestructive("Restore the default settings?",
+                                        detail: detail,
+                                        confirm: "Restore Defaults") else { return }
         settings.restoreDefaults()
     }
 
-    private func slider(_ title: String,
-                        _ value: Binding<Double>,
-                        _ range: ClosedRange<Double>,
-                        caption: String? = nil,
-                        display: @escaping (Double) -> String) -> some View {
-        LabelledSlider(title: title, value: value, range: range,
-                       display: display, caption: caption)
+    private func sliders(_ settingList: SparkleSetting...) -> some View {
+        ForEach(settingList, id: \.title) { setting in
+            SettingSlider(setting: setting, profile: $settings.profile)
+        }
     }
 }
 

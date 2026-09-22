@@ -20,19 +20,12 @@ struct MenuPanel: View {
                 CustomColorEditor(settings: settings)
             }
 
-            LabelledSlider(title: "Amount", value: $settings.profile.density, range: 0...1,
-                           display: { "\(Int($0 * 100))%" })
-            LabelledSlider(title: "Largest", value: $settings.profile.maxSize, range: 6...48,
-                           display: { "\(Int($0)) pt" })
-            LabelledSlider(title: "Lifetime", value: $settings.profile.lifetime, range: 250...3000,
-                           display: { String(format: "%.1f s", $0 / 1000) })
-
-            Picker("Shape", selection: $settings.profile.shapeID) {
-                ForEach(SparkleShape.allCases) { shape in
-                    Text(shape.label).tag(shape.rawValue)
-                }
+            ForEach([SparkleSetting.density, .maxSize, .lifetime], id: \.title) { setting in
+                SettingSlider(setting: setting, profile: $settings.profile, showsCaption: false)
             }
-            .pickerStyle(.menu)
+
+            ShapePicker(shapeID: $settings.profile.shapeID)
+                .pickerStyle(.menu)
 
             Toggle("Glow", isOn: $settings.profile.glow)
             Toggle("Burst on click", isOn: $settings.profile.clickBurst)
@@ -77,35 +70,6 @@ struct MenuPanel: View {
     }
 }
 
-struct LabelledSlider: View {
-    let title: String
-    @Binding var value: Double
-    let range: ClosedRange<Double>
-    var display: (Double) -> String
-    /// Only the controls whose effect is not obvious carry one. Captioning
-    /// every slider would bury the few that need the explanation.
-    var caption: String?
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            HStack {
-                Text(title).font(.caption)
-                Spacer()
-                Text(display(value))
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
-            }
-            Slider(value: $value, in: range)
-            if let caption {
-                Text(caption)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-    }
-}
-
 struct PaletteGrid: View {
     @ObservedObject var settings: SparkleSettings
 
@@ -132,16 +96,12 @@ struct PaletteGrid: View {
         }
     }
 
+    /// Each swatch previews the palette it selects, not the one in use, so the
+    /// grid asks about that palette rather than the live profile.
     private func swatchColors(for palette: SparklePalette) -> [Color] {
-        switch palette.id {
-        case Palettes.rainbowID:
-            return (0..<6).map { Color(hue: Double($0) / 6, saturation: 0.85, brightness: 1) }
-        case Palettes.customID:
-            let colors = settings.profile.customHexes.compactMap(NSColor.init(hex:)).map(Color.init(nsColor:))
-            return colors.isEmpty ? [Color(nsColor: .quaternaryLabelColor)] : colors
-        default:
-            return palette.swatches.map(Color.init(nsColor:))
-        }
+        var previewed = settings.profile
+        previewed.paletteID = palette.id
+        return Palettes.colors(for: previewed).swatches.map(Color.init(nsColor:))
     }
 }
 

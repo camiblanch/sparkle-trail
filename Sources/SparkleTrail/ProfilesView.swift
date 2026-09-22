@@ -8,7 +8,6 @@ struct ProfileMenu: View {
     @ObservedObject private var store = ProfileStore.shared
 
     @State private var naming = false
-    @State private var newName = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -46,39 +45,24 @@ struct ProfileMenu: View {
 
                 Spacer()
 
-                Button(naming ? "Cancel" : "Save current…") {
-                    naming.toggle()
-                    newName = ""
-                }
-                .buttonStyle(.borderless)
-                .font(.caption)
+                Button(naming ? "Cancel" : "Save current…") { naming.toggle() }
+                    .buttonStyle(.borderless)
+                    .font(.caption)
             }
 
             if naming {
-                HStack(spacing: 6) {
-                    TextField("Profile name", text: $newName)
-                        .textFieldStyle(.roundedBorder)
-                        .font(.caption)
-                        .onSubmit(saveCurrent)
-                    Button("Save", action: saveCurrent)
-                        .buttonStyle(.borderless)
-                        .font(.caption)
-                        .disabled(newName.trimmingCharacters(in: .whitespaces).isEmpty)
+                SaveProfileField(placeholder: "Profile name", buttonTitle: "Save") { name in
+                    store.save(name: name, profile: settings.profile)
+                    naming = false
                 }
+                .buttonStyle(.borderless)
+                .font(.caption)
             }
         }
     }
 
     private func matchesCurrent(_ saved: NamedProfile) -> Bool {
         saved.profile == settings.profile
-    }
-
-    private func saveCurrent() {
-        let name = newName.trimmingCharacters(in: .whitespaces)
-        guard !name.isEmpty else { return }
-        store.save(name: name, profile: settings.profile)
-        naming = false
-        newName = ""
     }
 }
 
@@ -87,7 +71,6 @@ struct ProfilesSection: View {
     @ObservedObject var settings: SparkleSettings
     @ObservedObject private var store = ProfileStore.shared
 
-    @State private var newName = ""
 
     var body: some View {
         if store.profiles.isEmpty {
@@ -120,16 +103,8 @@ struct ProfilesSection: View {
             }
         }
 
-        HStack(spacing: 8) {
-            TextField("New profile name", text: $newName)
-                .textFieldStyle(.roundedBorder)
-            Button("Save current") {
-                let name = newName.trimmingCharacters(in: .whitespaces)
-                guard !name.isEmpty else { return }
-                store.save(name: name, profile: settings.profile)
-                newName = ""
-            }
-            .disabled(newName.trimmingCharacters(in: .whitespaces).isEmpty)
+        SaveProfileField(placeholder: "New profile name", buttonTitle: "Save current") { name in
+            store.save(name: name, profile: settings.profile)
         }
 
         HStack {
@@ -145,7 +120,7 @@ struct ProfilesSection: View {
         do {
             try store.export(name: name, profile: profile)
         } catch {
-            present(error: error, title: "Could not export the profile")
+            Alerts.report(error, title: "Could not export the profile")
         }
     }
 
@@ -159,29 +134,46 @@ struct ProfilesSection: View {
         do {
             try store.importProfile(from: url)
         } catch {
-            present(error: error, title: "Could not import that profile")
+            Alerts.report(error, title: "Could not import that profile")
         }
     }
 
     /// Deleting a profile cannot be undone: the undo stack holds looks, not the
     /// list of saved profiles.
     private func confirmDelete(_ saved: NamedProfile) {
-        let alert = NSAlert()
-        alert.messageText = "Delete the profile “\(saved.name)”?"
-        alert.informativeText = "This cannot be undone. The current settings do not change."
-        alert.alertStyle = .warning
-        alert.addButton(withTitle: "Delete")
-        alert.addButton(withTitle: "Cancel")
-        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        guard Alerts.confirmDestructive(
+            "Delete the profile “\(saved.name)”?",
+            detail: "This cannot be undone. The current settings do not change.",
+            confirm: "Delete") else { return }
         store.delete(saved.id)
     }
+}
 
-    private func present(error: Error, title: String) {
-        let alert = NSAlert()
-        alert.messageText = title
-        alert.informativeText = error.localizedDescription
-        alert.alertStyle = .warning
-        alert.runModal()
+/// Takes a name and hands back the trimmed, non-empty version. Owns the field
+/// text so neither caller repeats the trimming and the empty check.
+struct SaveProfileField: View {
+    let placeholder: String
+    let buttonTitle: String
+    let save: (String) -> Void
+
+    @State private var name = ""
+
+    var body: some View {
+        HStack(spacing: 8) {
+            TextField(placeholder, text: $name)
+                .textFieldStyle(.roundedBorder)
+                .onSubmit(commit)
+            Button(buttonTitle, action: commit)
+                .disabled(trimmed.isEmpty)
+        }
+    }
+
+    private var trimmed: String { name.trimmingCharacters(in: .whitespaces) }
+
+    private func commit() {
+        guard !trimmed.isEmpty else { return }
+        save(trimmed)
+        name = ""
     }
 }
 

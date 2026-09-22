@@ -39,6 +39,51 @@ enum Palettes {
     static func palette(id: String) -> SparklePalette {
         builtIn.first { $0.id == id } ?? builtIn[0]
     }
+
+    /// The one place a palette ID turns into colours. The renderer and the
+    /// swatch grid both ask here, so a new palette that needs special handling
+    /// is added once.
+    static func colors(for profile: SparkleProfile) -> PaletteColors {
+        switch profile.paletteID {
+        case rainbowID:
+            return .rainbow
+        case customID:
+            return .fixed(profile.customHexes.compactMap(NSColor.init(hex:)))
+        default:
+            return .fixed(palette(id: profile.paletteID).swatches)
+        }
+    }
+
+    static func rainbowColor(hue: Double) -> NSColor {
+        NSColor(hue: hue, saturation: 0.85, brightness: 1, alpha: 1)
+    }
+}
+
+/// Rainbow picks a fresh hue per sparkle rather than drawing from a list, so it
+/// cannot be flattened into one and stays a separate case.
+enum PaletteColors {
+    case fixed([NSColor])
+    case rainbow
+
+    /// White stands in for a palette with nothing readable in it, so a sparkle
+    /// is never invisible.
+    var swatches: [NSColor] {
+        switch self {
+        case .rainbow:
+            return (0..<Palettes.maxCustomColors).map {
+                Palettes.rainbowColor(hue: Double($0) / Double(Palettes.maxCustomColors))
+            }
+        case .fixed(let colors):
+            return colors.isEmpty ? [.white] : colors
+        }
+    }
+
+    var next: NSColor {
+        switch self {
+        case .rainbow: return Palettes.rainbowColor(hue: .random(in: 0...1))
+        case .fixed: return swatches.randomElement() ?? .white
+        }
+    }
 }
 
 enum SparkleShape: String, CaseIterable, Identifiable {

@@ -92,20 +92,9 @@ final class SparkleSettings: ObservableObject {
 
     var palette: SparklePalette { Palettes.palette(id: profile.paletteID) }
 
-    var activeColors: [NSColor] {
-        switch profile.paletteID {
-        case Palettes.customID:
-            let colors = profile.customHexes.compactMap(NSColor.init(hex:))
-            return colors.isEmpty ? [.white] : colors
-        case Palettes.rainbowID:
-            return []
-        default:
-            let colors = palette.swatches
-            return colors.isEmpty ? [.white] : colors
-        }
-    }
+    var paletteColors: PaletteColors { Palettes.colors(for: profile) }
 
-    var usesRainbow: Bool { profile.paletteID == Palettes.rainbowID }
+    var sparkleLimit: Int { max(1, Int(profile.maxSparkles)) }
 
     var sizeRange: ClosedRange<CGFloat> {
         let low = CGFloat(min(profile.minSize, profile.maxSize))
