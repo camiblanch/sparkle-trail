@@ -1,5 +1,7 @@
 # Sparkle Trail
 
+[![CI](https://github.com/camiblanch/sparkle-trail/actions/workflows/ci.yml/badge.svg)](https://github.com/camiblanch/sparkle-trail/actions/workflows/ci.yml)
+
 A macOS menu bar app that trails sparkles behind the mouse cursor, ported from
 the DOM version in [`reference/sparkle-cursor.js`](reference/sparkle-cursor.js).
 Same physics — pooled sparkles, gravity, spin, grow-then-fade — drawn with Core
@@ -32,19 +34,26 @@ not needed).
 
 ```sh
 ./build.sh          # produces build/Sparkle Trail.app for this Mac
+./test.sh           # runs the test suite; --filter <name> narrows it
 make run            # build, then launch it
+make test           # same as ./test.sh
 make install        # copy to /Applications and launch
 make uninstall      # quit and remove from /Applications
 make universal      # arm64 + x86_64 build
 make dist           # universal build, packaged as dist/SparkleTrail.zip
 ```
 
+Every push to `main` and every pull request runs `./test.sh` and `./build.sh` on
+a macOS runner, through
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+
 `make dist` regenerates the committed download; run it and commit the zip
 whenever the app changes. It cross-compiles the second architecture into its own
 scratch path and `lipo`s the slices together, so each slice keeps its own build
 cache.
 
-`build.sh` works around two gaps in the Command Line Tools:
+`scripts/swift-env.sh`, sourced by both scripts, works around three gaps in the
+Command Line Tools:
 
 - It selects the older SwiftPM build engine. The Swift Build engine needs a
   `Platforms` directory that the Command Line Tools do not ship.
@@ -52,8 +61,11 @@ cache.
   macOS 27 SDK on, `@State` is a macro rather than a property wrapper, and the
   Command Line Tools ship no `SwiftUIMacros` plugin to expand it. Set `SDKROOT`
   to choose an SDK yourself.
+- It points the compiler at `Testing.framework` and its macro plugin, which sit
+  outside the paths `swift test` searches.
 
-Neither workaround applies once a full Xcode is installed.
+Each gap is probed for rather than assumed, so none of the workarounds applies
+once a full Xcode is installed, and the same scripts run unchanged on CI.
 
 No permission prompts: the cursor is read with `NSEvent.mouseLocation` polling
 rather than an event tap, so there is nothing to approve in System Settings.
