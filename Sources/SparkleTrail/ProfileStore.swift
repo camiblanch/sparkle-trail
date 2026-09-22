@@ -12,10 +12,11 @@ final class ProfileStore: ObservableObject {
 
     @Published private(set) var profiles: [NamedProfile] = []
 
-    private let store = UserDefaults.standard
+    private let store: UserDefaults
     private let key = "profiles"
 
-    private init() {
+    init(store: UserDefaults = .standard) {
+        self.store = store
         guard let data = store.data(forKey: key),
               let decoded = try? JSONDecoder().decode([NamedProfile].self, from: data)
         else { return }
@@ -90,14 +91,14 @@ final class ProfileStore: ObservableObject {
     /// Writes the profile to the Downloads folder and selects it in the Finder,
     /// so the file never lands somewhere the user has to go hunting for.
     @discardableResult
-    func export(name: String, profile: SparkleProfile) throws -> URL {
+    func export(name: String, profile: SparkleProfile, to directory: URL? = nil) throws -> URL {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         let data = try encoder.encode(ExportedProfile(name: name, profile: profile))
 
-        let url = try destinationURL(for: name)
+        let url = try Self.destinationURL(for: name, in: directory ?? Self.downloads())
         try data.write(to: url)
-        NSWorkspace.shared.activateFileViewerSelecting([url])
+        if directory == nil { NSWorkspace.shared.activateFileViewerSelecting([url]) }
         return url
     }
 
@@ -113,19 +114,23 @@ final class ProfileStore: ObservableObject {
         return save(name: decoded.name, profile: decoded.profile)
     }
 
-    private func destinationURL(for name: String) throws -> URL {
-        let downloads = try FileManager.default.url(
+    private static func downloads() throws -> URL {
+        try FileManager.default.url(
             for: .downloadsDirectory, in: .userDomainMask, appropriateFor: nil, create: false)
+    }
 
+    /// Strips anything that would make an awkward filename, then counts up
+    /// rather than overwriting a file already sitting there.
+    static func destinationURL(for name: String, in directory: URL) -> URL {
         let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: " -_"))
         let cleaned = name.unicodeScalars.filter(allowed.contains).map(Character.init)
         let stem = String(cleaned).trimmingCharacters(in: .whitespaces)
         let base = stem.isEmpty ? "Sparkle Trail profile" : stem
 
-        var candidate = downloads.appendingPathComponent("\(base).sparkletrail.json")
+        var candidate = directory.appendingPathComponent("\(base).sparkletrail.json")
         var suffix = 2
         while FileManager.default.fileExists(atPath: candidate.path) {
-            candidate = downloads.appendingPathComponent("\(base) \(suffix).sparkletrail.json")
+            candidate = directory.appendingPathComponent("\(base) \(suffix).sparkletrail.json")
             suffix += 1
         }
         return candidate
